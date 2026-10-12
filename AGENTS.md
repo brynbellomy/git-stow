@@ -28,7 +28,9 @@ working on it.
   difference. A new difference needs a reason, a line in the README's
   "How it differs" section, and, for output, an entry in `stashToStow` or
   `normalize` in `e2e/conformance_test.go`.
-- `gofmt` and `go vet` clean; `make check` passes before every commit.
+- `gofmt` and `go vet` clean; `make check` passes before every commit. Run
+  `go test` with `-count=1`: the e2e tests build the binary themselves, so the
+  test cache cannot tell when the code under test changed.
 - Commit in small logical steps.
 
 ## Test safety (non-negotiable)
