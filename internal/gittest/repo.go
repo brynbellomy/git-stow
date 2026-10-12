@@ -3,6 +3,7 @@ package gittest
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 type Repo struct {
 	t   testing.TB
 	Dir string
+	env []string
 }
 
 // Result is the outcome of a command a test ran.
@@ -50,11 +52,27 @@ func (r *Repo) Path(rel string) string {
 	return filepath.Join(r.Dir, filepath.FromSlash(rel))
 }
 
+// WithEnv returns a view of the same work tree whose commands also get env.
+func (r *Repo) WithEnv(env ...string) *Repo {
+	return &Repo{t: r.t, Dir: r.Dir, env: append(append([]string{}, r.env...), env...)}
+}
+
 // Run runs a command in a directory relative to the work tree.
 func (r *Repo) Run(subdir, stdin, name string, args ...string) Result {
 	r.t.Helper()
+	res, err := r.TryRun(subdir, stdin, name, args...)
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	return res
+}
+
+// TryRun is Run for goroutines other than the test's own: a command that
+// cannot be started is reported as an error instead of failing the test.
+func (r *Repo) TryRun(subdir, stdin, name string, args ...string) (Result, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = r.Path(subdir)
+	cmd.Env = append(os.Environ(), r.env...)
 	cmd.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -65,9 +83,9 @@ func (r *Repo) Run(subdir, stdin, name string, args ...string) Result {
 	case errors.As(err, &exitErr):
 		res.Code = exitErr.ExitCode()
 	case err != nil:
-		r.t.Fatalf("running %s %q: %v", name, args, err)
+		return res, fmt.Errorf("running %s %q in %s: %w", name, args, cmd.Dir, err)
 	}
-	return res
+	return res, nil
 }
 
 // Git runs git at the top of the work tree, fails the test unless it exits 0,
@@ -141,10 +159,10 @@ func (r *Repo) Commit(msg string, files map[string]string) {
 }
 
 // AddWorktree creates a linked worktree on a new branch in a fresh
-// t.TempDir().
+// t.TempDir(); the worktree's name is the branch name.
 func (r *Repo) AddWorktree(branch string) *Repo {
 	r.t.Helper()
-	dir := filepath.Join(tempDir(r.t), "wt")
+	dir := filepath.Join(tempDir(r.t), branch)
 	r.Git("worktree", "add", "-q", "-b", branch, dir)
 	return &Repo{t: r.t, Dir: dir}
 }
