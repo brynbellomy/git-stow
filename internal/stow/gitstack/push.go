@@ -72,7 +72,7 @@ func (s *Stack) Push(ctx context.Context, o stow.PushOptions) error {
 		return err
 	}
 
-	rec, err := s.record(ctx, head, o, untracked)
+	rec, err := s.commitEntry(ctx, head, o, untracked)
 	if err != nil {
 		return err
 	}
@@ -131,10 +131,10 @@ type record struct {
 	patch  []byte // patch mode only: the diff the work tree loses
 }
 
-// record writes the entry's commits. git stash create supplies the index
+// commitEntry writes the entry's commits. git stash create supplies the index
 // commit and the work-tree tree; pathspecs, patch mode and untracked files
 // refine them, and the final commit is assembled here.
-func (s *Stack) record(ctx context.Context, head string, o stow.PushOptions, untracked []byte) (record, error) {
+func (s *Stack) commitEntry(ctx context.Context, head string, o stow.PushOptions, untracked []byte) (record, error) {
 	branch, base, err := s.describeHead(ctx)
 	if err != nil {
 		return record{}, err

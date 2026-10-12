@@ -45,6 +45,11 @@ func TestStowRefAndReflogArePerWorktree(t *testing.T) {
 	// git's own worktree-qualified names reach another worktree's stack.
 	require.Equal(t, main.Git("rev-parse", "refs/worktree/stow"), two.Git("rev-parse", "main-worktree/refs/worktree/stow"))
 	require.Equal(t, one.Git("rev-parse", "refs/worktree/stow@{1}"), two.Git("rev-parse", "worktrees/one/refs/worktree/stow@{1}"))
+	require.Equal(t, "On main: main entry", two.Git("log", "-g", "--format=%gs", "main-worktree/refs/worktree/stow"))
+	require.Equal(t, "On one: second\nOn one: first", two.Git("log", "-g", "--format=%gs", "worktrees/one/refs/worktree/stow"))
+
+	// Inside a worktree, git itself names stow@{n} worktree/stow@{n}.
+	require.Equal(t, "a.txt | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)", strings.TrimSpace(one.Git("stash", "show", "worktree/stow@{1}")))
 }
 
 func TestEntriesAreGitStashCommits(t *testing.T) {
